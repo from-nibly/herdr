@@ -629,6 +629,9 @@ impl ClientShellState {
             }
             return None;
         }
+        if self.route_persistent_popup_toggle(key, outcome) {
+            return None;
+        }
         if let Some(target) = self.popup_input_target() {
             return Some(target);
         }

@@ -65,6 +65,8 @@ pub struct EndpointClientHello {
     #[serde(default)]
     pub surface_scroll: bool,
     #[serde(default)]
+    pub persistent_popups: bool,
+    #[serde(default)]
     pub snapshot_codecs: Vec<String>,
     #[serde(default)]
     pub surface_codecs: Vec<String>,
@@ -215,6 +217,7 @@ mod tests {
             surface_reuse: false,
             surface_delta: false,
             surface_scroll: false,
+            persistent_popups: false,
             snapshot_codecs: vec![SNAPSHOT_CODEC_V1.into()],
             surface_codecs: vec![SURFACE_CODEC_V1.into()],
             input_codecs: vec![INPUT_CODEC_V1.into()],

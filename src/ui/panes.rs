@@ -14,7 +14,6 @@ use super::widgets::panel_contrast_fg;
 use crate::app::state::Palette;
 use crate::app::AppState;
 use crate::layout::{PaneId, PaneInfo};
-use crate::popup_size::resolve_popup_geometry;
 use crate::terminal::{TerminalRuntime, TerminalRuntimeRegistry};
 
 pub(crate) fn pane_is_scrolled_back(rt: &TerminalRuntime) -> bool {
@@ -523,7 +522,7 @@ pub(super) fn render_panes(
 
 pub(crate) fn popup_pane_rects(app: &AppState, area: Rect) -> Option<(Rect, Rect)> {
     let popup = app.popup_pane.as_ref()?;
-    resolve_popup_geometry(popup.width, popup.height, area)
+    crate::persistent_popup::resolve_geometry(popup.width, popup.height, popup.options, area)
         .map(|geometry| (geometry.outer, geometry.inner))
 }
 

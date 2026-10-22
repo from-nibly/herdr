@@ -861,6 +861,9 @@ pub(crate) struct ClientShellState {
     pub(super) config: ClientShellConfig,
     pub(super) snapshot: Option<Box<ClientShellSnapshot>>,
     pub(super) active_snapshot_generation: Option<u64>,
+    pub(super) persistent_popup_projections:
+        HashMap<ClientEndpointId, (u64, crate::persistent_popup::PopupProjection)>,
+    pub(super) persistent_popup_prefix: bool,
     pub(super) pane_surface_generation: Option<u64>,
     pub(super) pane_surface: Option<PaneSurfaceFrame>,
     /// A future projection surface waits here until its matching snapshot arrives. The visible
@@ -1034,6 +1037,8 @@ impl ClientShellState {
             config,
             snapshot: None,
             active_snapshot_generation: None,
+            persistent_popup_projections: HashMap::new(),
+            persistent_popup_prefix: false,
             pane_surface_generation: None,
             pane_surface: None,
             pending_pane_surface: None,
@@ -1242,6 +1247,7 @@ impl ClientShellState {
         self.pending_pane_surface = None;
         self.input_leases = ClientInputLeases::default();
         self.popup_terminal_id = None;
+        self.persistent_popup_prefix = false;
         self.chrome_drag = None;
         self.workspace_press = None;
         self.tab_press = None;
@@ -1668,6 +1674,7 @@ impl ClientShellState {
             .as_deref()
             .map(|popup| popup.terminal_id.clone());
         if previous_popup != next_popup {
+            self.persistent_popup_prefix = false;
             if next_popup.is_some() && matches!(self.overlay, Some(ClientShellOverlay::Settings(_)))
             {
                 self.cancel_settings_overlay();
@@ -1707,7 +1714,7 @@ impl ClientShellState {
             self.endpoint_error = None;
             self.endpoint_error_deadline = None;
         }
-        if next_popup.is_some() {
+        if next_popup.is_some() || previous_popup != next_popup {
             self.popup_pending = false;
             self.popup_pending_deadline = None;
         }

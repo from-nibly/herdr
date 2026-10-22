@@ -2112,6 +2112,18 @@ async fn run_client_loop(
                             }
                             continue;
                         }
+                        if kind == crate::persistent_popup::PRESENTATION_KIND {
+                            if let Ok(projection) = serde_json::from_str(&data) {
+                                if let Some(shell) = state.shell.as_mut() {
+                                    shell.set_persistent_popup_projection(
+                                        &endpoint_id,
+                                        generation,
+                                        projection,
+                                    );
+                                }
+                            }
+                            continue;
+                        }
                         let snapshot = match endpoint::decode_endpoint_control(&kind, &data) {
                             Ok(endpoint::EndpointControlMessage::HealthPong) => continue,
                             Ok(endpoint::EndpointControlMessage::AgentViewProjection(

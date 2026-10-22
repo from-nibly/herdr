@@ -55,6 +55,9 @@ fn client_agent_view_projection(
     serde_json::from_str(&data).expect("decode client agent view projection")
 }
 
+#[path = "persistent_popups.rs"]
+mod persistent_popups;
+
 fn test_headless_server() -> HeadlessServer {
     test_headless_server_with_event_hub(api::EventHub::default())
 }
@@ -729,6 +732,7 @@ async fn client_shell_attach_seeds_workspace() {
             surface_reuse: false,
             surface_delta: false,
             surface_scroll: false,
+            persistent_popups: false,
             client_id: 6,
             surface_cols: 80,
             surface_rows: 23,
@@ -772,6 +776,7 @@ async fn completion_guard_endpoint_pairs_runtime_completions_with_snapshots() {
         surface_reuse: false,
         surface_delta: false,
         surface_scroll: false,
+        persistent_popups: false,
         writer,
     });
     let (_, initial) = client_shell_projection(&control_rx);
@@ -821,6 +826,7 @@ async fn client_shell_endpoint_request_uses_the_selected_connection() {
             surface_reuse: false,
             surface_delta: false,
             surface_scroll: false,
+            persistent_popups: false,
             client_id,
             surface_cols: 80,
             surface_rows: 23,
@@ -940,6 +946,7 @@ async fn client_shell_pairs_agent_view_set_replacement_and_clear_with_snapshots(
             surface_reuse: false,
             surface_delta: false,
             surface_scroll: false,
+            persistent_popups: false,
             client_id: 77,
             surface_cols: 80,
             surface_rows: 23,
@@ -1043,6 +1050,7 @@ async fn client_shell_receives_metadata_then_shell_free_pane_surface() {
             surface_reuse: false,
             surface_delta: false,
             surface_scroll: false,
+            persistent_popups: false,
             client_id: 7,
             surface_cols: 80,
             surface_rows: 23,
@@ -1211,6 +1219,7 @@ fn connect_test_shell(
             surface_reuse: false,
             surface_delta: false,
             surface_scroll: false,
+            persistent_popups: false,
             client_id,
             surface_cols,
             surface_rows,
@@ -1816,6 +1825,7 @@ async fn client_shell_config_diagnostics_follow_keybinding_ownership() {
             surface_reuse: false,
             surface_delta: false,
             surface_scroll: false,
+            persistent_popups: false,
             client_id: 13,
             surface_cols: 80,
             surface_rows: 23,
@@ -1841,6 +1851,7 @@ async fn client_shell_config_diagnostics_follow_keybinding_ownership() {
             surface_reuse: false,
             surface_delta: false,
             surface_scroll: false,
+            persistent_popups: false,
             client_id: 14,
             surface_cols: 80,
             surface_rows: 23,
@@ -2761,6 +2772,7 @@ async fn public_api_focus_replaces_every_client_shell_projection() {
             surface_reuse: false,
             surface_delta: false,
             surface_scroll: false,
+            persistent_popups: false,
             client_id: 9,
             surface_cols: 80,
             surface_rows: 23,
@@ -3008,6 +3020,7 @@ async fn client_shell_streams_and_targets_popup_terminal_content() {
             surface_reuse: false,
             surface_delta: false,
             surface_scroll: false,
+            persistent_popups: false,
             client_id: 12,
             surface_cols: 80,
             surface_rows: 23,
@@ -6460,6 +6473,7 @@ async fn client_shell_requests_host_pixels_for_an_unfocused_pixel_pane() {
             surface_reuse: false,
             surface_delta: false,
             surface_scroll: false,
+            persistent_popups: false,
             client_id: 7,
             surface_cols: 80,
             surface_rows: 23,

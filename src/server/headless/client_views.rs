@@ -126,6 +126,7 @@ impl HeadlessServer {
     }
 
     pub(super) fn reconcile_client_shell_locations(&mut self) {
+        self.app.reconcile_persistent_popups();
         if self.app.state.popup_pane.is_none() {
             self.popup_owner_tab_id = None;
         } else if self
@@ -134,7 +135,9 @@ impl HeadlessServer {
             .is_some_and(|tab_id| self.app.parse_tab_id(tab_id).is_none())
         {
             self.popup_owner_tab_id = None;
-            self.app.close_popup_pane();
+            if !self.app.hide_persistent_popup() {
+                self.app.close_popup_pane();
+            }
         } else if self.popup_owner_tab_id.is_none() {
             self.popup_owner_tab_id = self
                 .default_shell_target()
@@ -812,6 +815,13 @@ impl HeadlessServer {
         mut msg: api::ApiRequestMessage,
     ) -> bool {
         let target_before = self.default_shell_target();
+        let invokes_persistent_popup = match &msg.request.method {
+            api::schema::Method::CommandInvoke(params) => self
+                .app
+                .resolve_client_shell_command(&params.command_id)
+                .is_some_and(|binding| binding.persistent_popup.is_some()),
+            _ => false,
+        };
         let popup_before = self.app.state.popup_pane.is_some();
         let method_claims_geometry = Self::public_request_may_change_geometry(&msg.request.method);
         let explicit_public_focus_target = match &msg.request.method {
@@ -865,6 +875,11 @@ impl HeadlessServer {
         });
         let reconcile = Self::shell_locations_may_need_reconcile(&msg.request.method);
         let changed = self.handle_api_request_with_shutdown_check_inner(msg, false, false);
+        if invokes_persistent_popup && self.app.state.popup_pane.is_some() {
+            self.popup_owner_tab_id = self
+                .default_shell_target()
+                .and_then(|target| self.tab_id_for_target(target));
+        }
         let proxied_result = forward_proxied_api_response(response_proxy);
         let proxied_request_succeeded = proxied_result.is_some();
         // Same-tab and zoomed moves succeed without moving or requesting focus.
@@ -920,8 +935,18 @@ impl HeadlessServer {
         let navigation_changed =
             self.apply_shell_navigation_request(client_id, &msg.request.method);
         self.set_default_shell_target_from_client(client_id);
-        let popup_before = self.app.state.popup_pane.is_some();
         let popup_owner = self.shell_tab_id_for_client(client_id);
+        let toggles_persistent_popup = match &msg.request.method {
+            api::schema::Method::CommandInvoke(params) => self
+                .app
+                .resolve_client_shell_command(&params.command_id)
+                .is_some_and(|binding| binding.persistent_popup.is_some()),
+            _ => false,
+        };
+        if toggles_persistent_popup && self.popup_owner_tab_id != popup_owner {
+            self.app.hide_persistent_popup();
+        }
+        let popup_before = self.app.state.popup_pane.is_some();
         let changed = self.handle_api_request_with_shutdown_check_inner(msg, false, true);
         self.focus_shell_client_on_default_target(client_id);
         if !popup_before && self.app.state.popup_pane.is_some() {

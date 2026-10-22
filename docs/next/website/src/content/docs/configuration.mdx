@@ -225,6 +225,46 @@ height = "80%"
 On Windows, use a shell command such as `command = "powershell.exe -NoLogo"`
 instead. Exit the shell to close the popup and restore the tiled terminal view.
 
+### Persistent scratch terminals
+
+A persistent popup keeps its terminal process, working directory, shell variables,
+scrollback, and running commands when hidden. Press the same binding to show or hide it:
+
+```toml
+[[keys.command]]
+key = "f12"
+type = "persistent_popup"
+command = "zsh"
+scope = "workspace"
+style = "drawer"
+edge = "bottom"
+height = "40%"
+```
+
+- `scope = "global"`: one terminal per binding for this Herdr server/session.
+- `scope = "workspace"` (default): one terminal per binding per workspace.
+- `scope = "tab"`: one terminal per binding per tab.
+- `style = "overlay"` (default): the existing centered popup, respecting `width` and `height`.
+- `style = "drawer"`: a full-width popup anchored to `edge = "top"` or `"bottom"`
+  (default). `height` controls its depth; `width` is ignored. It covers rather than
+  resizes tiled panes. Show/hide is immediate, without animation.
+
+The terminal starts in the focused pane's detected working directory on first use.
+Subsequent toggles retain that terminal's directory. Only persistent-popup bindings
+(and their configured prefix) are intercepted while it has focus; other input,
+including Escape, goes to its command. `exit` or Ctrl+D ends the shell, so the next
+invocation creates a fresh terminal. Only one popup is shown at a time; invoking
+another persistent popup hides the previous one without killing it.
+
+Closing a workspace or tab destroys its scoped terminals. Global terminals survive
+workspace closure. Persistent terminals are not restored across server restarts or
+live binary handoff. Configuration reload preserves terminals for unchanged
+bindings; changing a binding's key, command, or scope creates a separate instance.
+Old instances remain until their owner closes or the server stops.
+
+The optional persistent-popup metadata does not change the generation-1 binary
+codecs. Older clients do not receive these commands in their command manifest.
+
 `type = "pane"` opens a temporary zoomed pane and closes it when the command exits.
 
 `type = "shell"` runs detached in the background.

@@ -11,6 +11,7 @@ fn pending_popup() -> (ClientShellState, Vec<ClientShellAction>) {
         description: None,
         width: None,
         height: None,
+        persistent_popup: None,
     };
     let mut projection = snapshot();
     projection

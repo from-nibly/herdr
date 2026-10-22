@@ -1910,6 +1910,7 @@ impl HeadlessServer {
                 surface_reuse,
                 surface_delta,
                 surface_scroll,
+                persistent_popups,
                 writer,
             } => {
                 if self.handoff_in_progress {
@@ -1953,6 +1954,7 @@ impl HeadlessServer {
                 connection.pixel_mouse = pixel_mouse && observed.is_known();
                 connection.direct_graphics = direct_graphics;
                 connection.shell_uses_endpoint_keybindings = endpoint_keybindings;
+                connection.shell_persistent_popups = persistent_popups;
                 connection.shell_mouse_capture = mouse_capture;
                 connection.shell_surface_active = surface_active;
                 connection.render_state.enable_surface_reuse(surface_reuse);
@@ -1966,13 +1968,19 @@ impl HeadlessServer {
                 } else {
                     self.server_config_diagnostic_without_keybindings.as_deref()
                 };
-                let (seed_snapshot, completion_projection) = client_shell_snapshot(
+                let (mut seed_snapshot, completion_projection) = client_shell_snapshot(
                     &self.app,
                     &self.client_shell_boot_id,
                     connection.shell_projection_revision,
                     config_diagnostic,
                     None,
                 );
+                if !persistent_popups {
+                    let commands = self.app.persistent_popup_commands();
+                    seed_snapshot.commands.retain(|command| {
+                        !commands.iter().any(|(id, _)| id == &command.command_id)
+                    });
+                }
                 let location =
                     crate::server::clients::ClientShellLocation::from_snapshot(&seed_snapshot);
                 let agent_view = self.app.state.agent_view_override.clone();

@@ -271,6 +271,9 @@ impl ClientShellConfig {
                             description: command.description.clone(),
                             width: None,
                             height: None,
+                            scope: Default::default(),
+                            style: Default::default(),
+                            edge: Default::default(),
                         })
                     })
                     .collect();
@@ -298,6 +301,7 @@ impl ClientShellConfig {
                         description: command.description.clone(),
                         width: None,
                         height: None,
+                        persistent_popup: None,
                     });
             }
         }

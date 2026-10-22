@@ -20,6 +20,8 @@ pub(crate) struct PopupPaneState {
     pub terminal_id: crate::terminal::TerminalId,
     pub width: Option<crate::popup_size::PopupSize>,
     pub height: Option<crate::popup_size::PopupSize>,
+    pub persistent_key: Option<crate::persistent_popup::PersistentPopupKey>,
+    pub options: Option<crate::persistent_popup::PersistentPopupOptions>,
 }
 
 use crate::terminal_theme::{HostAppearance, TerminalTheme};
@@ -875,6 +877,8 @@ pub struct AppState {
     pub(crate) plugin_panes: std::collections::HashMap<PaneId, PluginPaneRecord>,
     /// Session-modal terminal popup. This is intentionally outside workspace layouts.
     pub(crate) popup_pane: Option<PopupPaneState>,
+    pub(crate) persistent_popups:
+        std::collections::HashMap<crate::persistent_popup::PersistentPopupKey, PopupPaneState>,
     /// Recent plugin action/event command executions.
     pub(crate) plugin_command_logs: Vec<crate::api::schema::PluginCommandLogInfo>,
     pub(crate) next_plugin_command_log_id: u64,
@@ -1113,6 +1117,7 @@ impl AppState {
             installed_plugins: std::collections::HashMap::new(),
             plugin_panes: std::collections::HashMap::new(),
             popup_pane: None,
+            persistent_popups: Default::default(),
             plugin_command_logs: Vec::new(),
             next_plugin_command_log_id: 1,
             plugin_commands_in_flight: 0,
@@ -1299,6 +1304,12 @@ impl AppState {
                 "popup terminal {} must not be attached to a tiled pane",
                 popup.terminal_id
             );
+        }
+        for (key, popup) in &self.persistent_popups {
+            assert_eq!(popup.persistent_key.as_ref(), Some(key));
+            assert!(self.terminals.contains_key(&popup.terminal_id));
+            assert!(!attached_terminal_ids.contains(&popup.terminal_id));
+            assert!(popup.options.is_some());
         }
         for &pane_id in self.plugin_panes.keys() {
             assert_live_pane(pane_id, "plugin pane record");

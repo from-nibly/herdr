@@ -17,6 +17,9 @@ impl App {
         let Some(popup) = self.state.popup_pane.take() else {
             return false;
         };
+        if let Some(key) = &popup.persistent_key {
+            self.state.persistent_popups.remove(key);
+        }
         self.state
             .direct_attach_resize_locks
             .remove(&popup.terminal_id);
@@ -30,6 +33,143 @@ impl App {
         self.render_dirty.request_generic();
         self.render_notify.notify_one();
         true
+    }
+
+    pub(crate) fn hide_persistent_popup(&mut self) -> bool {
+        if self
+            .state
+            .popup_pane
+            .as_ref()
+            .is_none_or(|popup| popup.persistent_key.is_none())
+        {
+            return false;
+        }
+        self.state.popup_pane = None;
+        self.state.mode = if self.state.active.is_some() {
+            Mode::Terminal
+        } else {
+            Mode::Navigate
+        };
+        self.render_dirty.request_generic();
+        self.render_notify.notify_one();
+        true
+    }
+
+    pub(crate) fn toggle_persistent_popup(
+        &mut self,
+        binding: &crate::config::CustomCommandKeybind,
+        options: crate::persistent_popup::PersistentPopupOptions,
+    ) -> std::io::Result<()> {
+        use crate::persistent_popup::{PersistentPopupKey, PopupOwner, PopupScope, PopupStyle};
+        let ws_idx = self
+            .state
+            .active
+            .ok_or_else(|| std::io::Error::other("no active workspace"))?;
+        let ws = &self.state.workspaces[ws_idx];
+        let owner = match options.scope {
+            PopupScope::Global => PopupOwner::Global,
+            PopupScope::Workspace => PopupOwner::Workspace(ws.id.clone()),
+            PopupScope::Tab => PopupOwner::Tab(
+                self.public_tab_id(ws_idx, ws.active_tab_index())
+                    .ok_or_else(|| std::io::Error::other("no active tab"))?,
+            ),
+        };
+        let key = PersistentPopupKey {
+            label: binding.label.clone(),
+            command: binding.command.clone(),
+            owner,
+        };
+        if self
+            .state
+            .popup_pane
+            .as_ref()
+            .is_some_and(|popup| popup.persistent_key.as_ref() == Some(&key))
+        {
+            self.hide_persistent_popup();
+            return Ok(());
+        }
+        if self.state.popup_pane.is_some() && !self.hide_persistent_popup() {
+            return Err(std::io::Error::other("temporary popup already open"));
+        }
+        if let Some(popup) = self.state.persistent_popups.get_mut(&key) {
+            popup.options = Some(options);
+            popup.width = binding.width;
+            popup.height = binding.height;
+            self.state.popup_pane = Some(popup.clone());
+        } else {
+            self.spawn_popup_shell_command(
+                &binding.command,
+                None,
+                self.custom_command_env().0,
+                PopupGeometry {
+                    width: if options.style == PopupStyle::Drawer {
+                        Some(PopupSize::Percent(100))
+                    } else {
+                        binding.width
+                    },
+                    height: binding.height,
+                },
+            )?;
+            if let Some(popup) = self.state.popup_pane.as_mut() {
+                popup.persistent_key = Some(key.clone());
+                popup.options = Some(options);
+                self.state.persistent_popups.insert(key, popup.clone());
+            }
+        }
+        self.state.mode = Mode::Terminal;
+        self.render_dirty.request_generic();
+        self.render_notify.notify_one();
+        Ok(())
+    }
+
+    pub(crate) fn close_hidden_popup_for_pane(&mut self, pane_id: PaneId) -> bool {
+        let key = self
+            .state
+            .persistent_popups
+            .iter()
+            .find_map(|(key, popup)| (popup.pane_id == pane_id).then(|| key.clone()));
+        let Some(key) = key else {
+            return false;
+        };
+        if let Some(popup) = self.state.persistent_popups.remove(&key) {
+            self.state
+                .direct_attach_resize_locks
+                .remove(&popup.terminal_id);
+            self.state.terminals.remove(&popup.terminal_id);
+            self.shutdown_terminal_runtime(popup.terminal_id);
+        }
+        true
+    }
+
+    pub(crate) fn reconcile_persistent_popups(&mut self) {
+        use crate::persistent_popup::PopupOwner;
+        let dead = self
+            .state
+            .persistent_popups
+            .iter()
+            .filter_map(|(key, popup)| {
+                let live = match &key.owner {
+                    PopupOwner::Global => true,
+                    PopupOwner::Workspace(id) => {
+                        self.state.workspaces.iter().any(|ws| &ws.id == id)
+                    }
+                    PopupOwner::Tab(id) => self.parse_tab_id(id).is_some(),
+                };
+                (!live).then_some(popup.pane_id)
+            })
+            .collect::<Vec<_>>();
+        for pane_id in dead {
+            if self
+                .state
+                .popup_pane
+                .as_ref()
+                .is_some_and(|popup| popup.pane_id == pane_id)
+            {
+                self.close_popup_pane();
+            } else {
+                self.close_hidden_popup_for_pane(pane_id);
+            }
+        }
     }
 
     pub(crate) fn spawn_popup_shell_command(
@@ -164,6 +304,8 @@ impl App {
             terminal_id,
             width: geometry.width,
             height: geometry.height,
+            persistent_key: None,
+            options: None,
         });
         self.state.mode = Mode::Terminal;
         Ok(())
@@ -188,10 +330,16 @@ impl App {
             terminal_id: terminal_id.clone(),
             width: None,
             height: None,
+            persistent_key: None,
+            options: None,
         });
         (pane_id, terminal_id)
     }
 }
+
+#[cfg(test)]
+#[path = "persistent_popup_tests.rs"]
+mod persistent_popup_tests;
 
 #[cfg(test)]
 mod tests {
@@ -219,6 +367,8 @@ mod tests {
             terminal_id,
             width: None,
             height: None,
+            persistent_key: None,
+            options: None,
         });
         app
     }

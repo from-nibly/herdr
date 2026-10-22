@@ -629,6 +629,18 @@ impl HeadlessServer {
                     .get(&client_id)
                     .and_then(|client| client.shell_location.clone());
                 let agent_view = self.app.state.agent_view_override.clone();
+                let popup_commands = self.app.persistent_popup_commands();
+                let popup_visible = self
+                    .app
+                    .state
+                    .popup_pane
+                    .as_ref()
+                    .filter(|_| shell_shows_popup)
+                    .and_then(|popup| {
+                        popup
+                            .options
+                            .map(|options| (popup.terminal_id.as_str(), options))
+                    });
                 let Some(client) = self.clients.get_mut(&client_id) else {
                     continue;
                 };
@@ -639,6 +651,54 @@ impl HeadlessServer {
                     None,
                     location.as_ref(),
                 );
+                if !client.shell_persistent_popups {
+                    candidate.commands.retain(|command| {
+                        !popup_commands
+                            .iter()
+                            .any(|(id, _)| id == &command.command_id)
+                    });
+                } else if client
+                    .shell_popup_projection
+                    .as_ref()
+                    .is_none_or(|projection| {
+                        projection.boot_id != self.client_shell_boot_id
+                            || projection.commands != popup_commands
+                            || projection
+                                .visible
+                                .as_ref()
+                                .map(|(id, options)| (id.as_str(), *options))
+                                != popup_visible
+                    })
+                {
+                    let popup_projection = crate::persistent_popup::PopupProjection {
+                        boot_id: self.client_shell_boot_id.clone(),
+                        commands: popup_commands.to_vec(),
+                        visible: popup_visible.map(|(id, options)| (id.to_owned(), options)),
+                    };
+                    let message = protocol::ServerMessage::EndpointControl {
+                        kind: crate::persistent_popup::PRESENTATION_KIND.into(),
+                        data: match serde_json::to_string(&popup_projection) {
+                            Ok(data) => data,
+                            Err(_) => {
+                                broken_clients.push(client_id);
+                                continue;
+                            }
+                        },
+                    };
+                    let sent = Self::frame_server_message(&message)
+                        .ok()
+                        .is_some_and(|framed| {
+                            client
+                                .writer
+                                .as_ref()
+                                .is_some_and(|writer| writer.control.send(framed).is_ok())
+                        });
+                    if !sent {
+                        broken_clients.push(client_id);
+                        continue;
+                    }
+                    client.shell_popup_projection = Some(popup_projection);
+                }
                 candidate.config_diagnostic = if client.shell_uses_endpoint_keybindings {
                     self.server_config_diagnostic.clone()
                 } else {

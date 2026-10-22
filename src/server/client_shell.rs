@@ -504,7 +504,7 @@ fn render_popup_surface(
     let geometry = if resize_runtime {
         resize_popup_runtime(app, area, cell_size)?
     } else {
-        crate::popup_size::resolve_popup_geometry(popup.width, popup.height, area)?
+        crate::persistent_popup::resolve_geometry(popup.width, popup.height, popup.options, area)?
     };
     let runtime = app.terminal_runtimes.get(&popup.terminal_id)?;
     let content_area = Rect::new(0, 0, geometry.inner.width, geometry.inner.height);
@@ -544,7 +544,8 @@ pub(super) fn resize_popup_runtime(
     cell_size: crate::kitty_graphics::HostCellSize,
 ) -> Option<crate::popup_size::PopupResolvedGeometry> {
     let popup = app.state.popup_pane.as_ref()?;
-    let geometry = crate::popup_size::resolve_popup_geometry(popup.width, popup.height, area)?;
+    let geometry =
+        crate::persistent_popup::resolve_geometry(popup.width, popup.height, popup.options, area)?;
     let runtime = app.terminal_runtimes.get(&popup.terminal_id)?;
     if !app
         .state

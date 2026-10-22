@@ -217,6 +217,9 @@ impl App {
                 self.close_popup_pane();
                 return Vec::new();
             }
+            if self.close_hidden_popup_for_pane(*pane_id) {
+                return Vec::new();
+            }
             if worktree_restore_failed {
                 worktree_restore_updates
                     .extend(self.publish_worktree_runtime_agent_release(*pane_id));

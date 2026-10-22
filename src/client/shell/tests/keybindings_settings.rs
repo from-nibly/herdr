@@ -548,6 +548,7 @@ fn custom_binding_invokes_only_the_endpoint_manifest_id() {
         description: None,
         width: None,
         height: None,
+        persistent_popup: None,
     };
     let mut projection = snapshot();
     projection
@@ -591,6 +592,7 @@ fn plugin_command_carries_client_owned_selection_coordinates() {
         description: None,
         width: None,
         height: None,
+        persistent_popup: None,
     };
     let mut projection = snapshot();
     projection
@@ -820,6 +822,7 @@ fn custom_binding_missing_from_endpoint_manifest_is_not_forwarded() {
         description: None,
         width: None,
         height: None,
+        persistent_popup: None,
     };
 
     let mut outcome = ClientShellInput::default();

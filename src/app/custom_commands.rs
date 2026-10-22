@@ -22,6 +22,7 @@ pub(super) fn new_command_namespace() -> String {
 #[derive(Debug)]
 pub(super) struct EndpointCommandRegistry {
     entries: Vec<EndpointCommand>,
+    persistent_commands: Vec<(String, Vec<String>)>,
 }
 
 #[derive(Debug)]
@@ -34,7 +35,7 @@ struct EndpointCommand {
 impl EndpointCommandRegistry {
     pub(super) fn new(bindings: &[crate::config::CustomCommandKeybind]) -> Self {
         let namespace = new_command_namespace();
-        let entries = bindings
+        let entries: Vec<EndpointCommand> = bindings
             .iter()
             .enumerate()
             .map(|(index, binding)| EndpointCommand {
@@ -43,7 +44,15 @@ impl EndpointCommandRegistry {
                 binding: binding.clone(),
             })
             .collect();
-        Self { entries }
+        let persistent_commands = entries
+            .iter()
+            .filter(|entry| entry.binding.persistent_popup.is_some())
+            .map(|entry| (entry.id.clone(), entry.binding.bindings.labels()))
+            .collect();
+        Self {
+            entries,
+            persistent_commands,
+        }
     }
 }
 
@@ -64,6 +73,10 @@ impl App {
                 description: entry.binding.description.clone(),
             })
             .collect()
+    }
+
+    pub(crate) fn persistent_popup_commands(&self) -> &[(String, Vec<String>)] {
+        &self.endpoint_commands.persistent_commands
     }
 
     pub(crate) fn resolve_client_shell_command(
@@ -230,6 +243,9 @@ impl App {
         &mut self,
         binding: &crate::config::CustomCommandKeybind,
     ) -> io::Result<()> {
+        if let Some(options) = binding.persistent_popup {
+            return self.toggle_persistent_popup(binding, options);
+        }
         self.spawn_popup_shell_command(
             &binding.command,
             None,
@@ -590,6 +606,7 @@ mod tests {
             description: Some("safe description".into()),
             width: None,
             height: None,
+            persistent_popup: None,
         }
     }
 

@@ -115,6 +115,7 @@ pub enum CommandKeybindType {
     Shell,
     Pane,
     Popup,
+    PersistentPopup,
     PluginAction,
 }
 
@@ -134,6 +135,9 @@ pub struct CommandKeybindConfig {
     pub width: Option<PopupSize>,
     /// Optional popup height as cells or a percentage string when type = "popup".
     pub height: Option<PopupSize>,
+    pub scope: crate::persistent_popup::PopupScope,
+    pub style: crate::persistent_popup::PopupStyle,
+    pub edge: crate::persistent_popup::PopupEdge,
 }
 
 impl Default for CommandKeybindConfig {
@@ -145,6 +149,9 @@ impl Default for CommandKeybindConfig {
             description: None,
             width: None,
             height: None,
+            scope: Default::default(),
+            style: Default::default(),
+            edge: Default::default(),
         }
     }
 }
@@ -334,6 +341,7 @@ pub struct CustomCommandKeybind {
     pub description: Option<String>,
     pub width: Option<PopupSize>,
     pub height: Option<PopupSize>,
+    pub persistent_popup: Option<crate::persistent_popup::PersistentPopupOptions>,
 }
 
 /// Parsed keybinds for Herdr actions.
@@ -829,7 +837,9 @@ fn append_custom_command_bindings(
         let action = match command.action_type {
             CommandKeybindType::Shell => CustomCommandAction::Shell,
             CommandKeybindType::Pane => CustomCommandAction::Pane,
-            CommandKeybindType::Popup => CustomCommandAction::Popup,
+            CommandKeybindType::Popup | CommandKeybindType::PersistentPopup => {
+                CustomCommandAction::Popup
+            }
             CommandKeybindType::PluginAction => CustomCommandAction::PluginAction,
         };
         let (width, height) = if action == CustomCommandAction::Popup {
@@ -853,6 +863,12 @@ fn append_custom_command_bindings(
             description: command.description.clone(),
             width,
             height,
+            persistent_popup: (command.action_type == CommandKeybindType::PersistentPopup)
+                .then_some(crate::persistent_popup::PersistentPopupOptions {
+                    scope: command.scope,
+                    style: command.style,
+                    edge: command.edge,
+                }),
         });
     }
 }
@@ -2552,6 +2568,38 @@ height = "80%"
             keybinds.custom_commands[0].height,
             Some(PopupSize::Percent(80))
         );
+    }
+
+    #[test]
+    fn persistent_popup_command_parses_scopes_and_presentation() {
+        use crate::persistent_popup::{PopupEdge, PopupScope, PopupStyle};
+        for (scope, expected) in [
+            ("global", PopupScope::Global),
+            ("workspace", PopupScope::Workspace),
+            ("tab", PopupScope::Tab),
+        ] {
+            let config: Config = toml::from_str(&format!(
+                r#"
+[[keys.command]]
+key = "f12"
+command = "zsh"
+type = "persistent_popup"
+scope = "{scope}"
+style = "drawer"
+edge = "top"
+height = "40%"
+"#
+            ))
+            .unwrap();
+            let keybinds = config.keybinds();
+            let binding = &keybinds.custom_commands[0];
+            assert_eq!(binding.action, CustomCommandAction::Popup);
+            let options = binding.persistent_popup.unwrap();
+            assert_eq!(options.scope, expected);
+            assert_eq!(options.style, PopupStyle::Drawer);
+            assert_eq!(options.edge, PopupEdge::Top);
+            assert_eq!(binding.height, Some(PopupSize::Percent(40)));
+        }
     }
 
     #[test]
