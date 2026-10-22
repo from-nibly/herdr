@@ -269,6 +269,9 @@ impl ClientShellState {
     }
 
     pub(super) fn request_selection_copy(&mut self, outcome: &mut ClientShellInput, live: bool) {
+        if self.copy_popup_selection(outcome) {
+            return;
+        }
         let Some(selection) = self.selection.as_ref() else {
             return;
         };

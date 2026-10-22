@@ -262,4 +262,5 @@ mod mobile;
 mod mouse_selection;
 mod persistent_popups;
 mod popup_focus_projection;
+mod popup_selection;
 mod startup_overlays;

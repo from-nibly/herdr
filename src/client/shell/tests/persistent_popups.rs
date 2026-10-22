@@ -1,7 +1,7 @@
 use super::*;
 use crate::persistent_popup::{PersistentPopupOptions, PopupEdge, PopupProjection, PopupStyle};
 
-fn persistent_state(style: PopupStyle, edge: PopupEdge) -> ClientShellState {
+pub(super) fn persistent_state(style: PopupStyle, edge: PopupEdge) -> ClientShellState {
     let config: Config = toml::from_str(
         r#"
 [[keys.command]]

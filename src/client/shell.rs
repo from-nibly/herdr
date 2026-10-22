@@ -17,6 +17,7 @@ mod endpoint_notices;
 mod endpoint_sidebar;
 mod endpoints;
 mod persistent_popups;
+mod popup_selection;
 pub(super) use endpoints::*;
 mod global_menu;
 mod graphics;

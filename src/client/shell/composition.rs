@@ -346,10 +346,10 @@ impl ClientShellState {
         blit_pane_surface(&mut frame, &surface.frame, layout.pane_surface);
         restore_mode_bar(&mut frame, mode_bar, mode_bar_cells.as_deref());
         let mut occlusion = crate::kitty_graphics::surface::Occlusion::default();
-        let has_selection = self
-            .selection
-            .as_ref()
-            .is_some_and(|selection| selection.is_visible());
+        let has_selection = self.selection.as_ref().is_some_and(|selection| {
+            selection.is_visible()
+                && self.popup_terminal_id.as_deref() != Some(selection.pane_id.as_str())
+        });
         let has_search = self
             .copy_mode
             .as_ref()
@@ -582,7 +582,36 @@ impl ClientShellState {
                 );
                 ratatui::widgets::Widget::render(block, geometry.outer, &mut composed);
                 frame.replace_from_ratatui_buffer_preserving_effects(&composed, None);
-                blit_pane_surface(&mut frame, &popup.frame, geometry.inner);
+                let popup_frame = self
+                    .selected_popup_frame(&popup.terminal_id)
+                    .unwrap_or(&popup.frame);
+                blit_pane_surface(&mut frame, popup_frame, geometry.inner);
+                if self
+                    .selection
+                    .as_ref()
+                    .is_some_and(|s| s.pane_id == popup.terminal_id && s.is_visible())
+                {
+                    let cursor = frame.cursor.clone();
+                    let mut composed = frame.to_ratatui_buffer()?;
+                    if let Some(selection) = self.selection.as_ref() {
+                        for rect in selection.visible_rects(geometry.inner, None) {
+                            occlusion.cover(rect);
+                        }
+                    }
+                    crate::ui::render_selection_highlight(
+                        self.selection.as_ref(),
+                        &mut composed,
+                        &popup.terminal_id,
+                        geometry.inner,
+                        None,
+                        &self.config.palette,
+                        crate::terminal_theme::TerminalTheme {
+                            background: self.host_background,
+                            ..Default::default()
+                        },
+                    );
+                    frame.replace_from_ratatui_buffer_preserving_effects(&composed, cursor);
+                }
                 self.hits.popup = Some(PaneHit {
                     rect: geometry.outer,
                     inner_rect: geometry.inner,

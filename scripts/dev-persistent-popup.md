@@ -52,6 +52,22 @@ Do not run destructive commands or important jobs in the disposable session.
 Persistent terminals are not restored after server restart/live binary handoff.
 A hidden shell keeps the dimensions it last had until shown again.
 
+## Clipboard selection
+
+In a plain-shell popup, left-drag selects text across rows without including the
+border or surrounding panes. Releasing copies automatically when `ui.copy_on_select`
+is enabled (the default). With it disabled, press Ctrl+C or Cmd+C to copy the retained
+selection. Paste uses the existing terminal paste shortcut. Mouse-reporting programs
+keep their mouse gestures rather than starting a local selection.
+
+Selection captures the visible popup viewport once, keeping that view steady while
+output continues in the background. Typing, pasting, scrolling, hiding, resizing,
+or copying clears it and resumes the latest view. Scroll to the desired output
+before selecting: dragging beyond the edge clamps to the visible viewport rather
+than autoscrolling. Copied rows are separated by newlines, including display rows
+created by soft wrapping; original logical-line wrap information is not present in
+the existing popup frame codec.
+
 ## Automated checks
 
 ```sh

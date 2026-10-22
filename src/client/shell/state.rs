@@ -872,6 +872,7 @@ pub(crate) struct ClientShellState {
     pub(super) graphics: crate::kitty_graphics::surface::ClientState,
     pub(super) graphics_cell_size: crate::kitty_graphics::HostCellSize,
     pub(super) popup_terminal_id: Option<String>,
+    pub(super) popup_selection_frame: Option<super::popup_selection::PopupSelectionFrame>,
     pub(super) sidebar_collapsed: bool,
     pub(super) sidebar_collapsed_manual: bool,
     pub(super) sidebar_width: u16,
@@ -1048,6 +1049,7 @@ impl ClientShellState {
                 height_px: 1,
             },
             popup_terminal_id: None,
+            popup_selection_frame: None,
             sidebar_collapsed,
             sidebar_collapsed_manual: preferences.sidebar_collapsed.is_some(),
             sidebar_width,
@@ -1246,6 +1248,7 @@ impl ClientShellState {
         self.pane_surface = None;
         self.pending_pane_surface = None;
         self.input_leases = ClientInputLeases::default();
+        self.clear_popup_selection();
         self.popup_terminal_id = None;
         self.persistent_popup_prefix = false;
         self.chrome_drag = None;
@@ -1674,6 +1677,7 @@ impl ClientShellState {
             .as_deref()
             .map(|popup| popup.terminal_id.clone());
         if previous_popup != next_popup {
+            self.clear_popup_selection();
             self.persistent_popup_prefix = false;
             if next_popup.is_some() && matches!(self.overlay, Some(ClientShellOverlay::Settings(_)))
             {
@@ -1896,6 +1900,7 @@ impl ClientShellState {
     }
 
     pub(crate) fn invalidate_pane_surface(&mut self) {
+        self.clear_popup_selection();
         self.pane_surface = None;
         self.pending_pane_surface = None;
         self.hits = ShellHitMap::default();

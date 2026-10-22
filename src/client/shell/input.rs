@@ -263,6 +263,7 @@ impl ClientShellState {
                         continue;
                     }
                     if let Some(target) = self.popup_input_target() {
+                        outcome.repaint |= self.clear_popup_selection();
                         super::push_target_event(
                             target,
                             ClientPaneInputEvent::TextCommit(text),
@@ -296,6 +297,7 @@ impl ClientShellState {
                         continue;
                     }
                     if let Some(target) = self.popup_input_target() {
+                        outcome.repaint |= self.clear_popup_selection();
                         super::push_target_event(
                             target,
                             ClientPaneInputEvent::Paste(text),
@@ -633,7 +635,21 @@ impl ClientShellState {
             return None;
         }
         if let Some(target) = self.popup_input_target() {
-            return Some(target);
+            if matches!(key.code, KeyCode::Modifier(_)) {
+                return Some(target);
+            }
+            let copy = self.popup_selection_frame.is_some()
+                && !self.config.copy_on_select
+                && is_retained_selection_copy_key(key)
+                && self
+                    .selection
+                    .as_ref()
+                    .is_some_and(crate::selection::Selection::is_visible);
+            if copy {
+                self.request_selection_copy(outcome, true);
+            }
+            outcome.repaint |= self.clear_popup_selection();
+            return (!copy).then_some(target);
         }
         if self.popup_pending {
             return None;
